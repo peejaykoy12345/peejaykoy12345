@@ -1,0 +1,150 @@
+import pygame
+import random
+
+pygame.init()
+win = pygame.display.set_mode((1000, 1000))
+
+class Cube:
+    def __init__(self, x, y, width, height, dx=0, dy=0, hp=150, color=(255, 255, 255)):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.dx = dx
+        self.dy = dy
+        self.hp = hp
+        self.color = color  
+
+    def draw(self, win, outline=5):
+        pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.height), outline)
+
+    def draw_hp_bar(self, win):
+        bar_width = self.width
+        bar_height = 10
+        hp_percentage = max(0, min(self.hp / 100, 1))
+        hp_color = (
+            max(0, min(255, 255 - int(255 * hp_percentage))),
+            max(0, min(255, int(255 * hp_percentage))),
+            0
+        )
+        pygame.draw.rect(win, hp_color, (self.x, self.y - bar_height, bar_width * hp_percentage, bar_height))
+
+    def move(self):
+        self.x += self.dx
+        self.y += self.dy
+
+    def bounce_wall(self, bounds):
+        if self.x <= bounds.x:
+            self.x = bounds.x
+            self.dx *= -1
+            self.dy += random.uniform(-5, 5)
+        elif self.x + self.width >= bounds.x + bounds.width:
+            self.x = bounds.x + bounds.width - self.width
+            self.dx *= -1
+            self.dy += random.uniform(-5, 5)
+
+        if self.y <= bounds.y:
+            self.y = bounds.y
+            self.dy *= -1
+            self.dx += random.uniform(-5, 5)
+        elif self.y + self.height >= bounds.y + bounds.height:
+            self.y = bounds.y + bounds.height - self.height
+            self.dy *= -1
+            self.dx += random.uniform(-5, 5)
+
+    def add_random_bounce(self):
+        max_speed = 7
+        min_speed = 3
+        self.dx = max(-max_speed, min(max_speed, self.dx)) if abs(self.dx) >= min_speed else min_speed * (1 if self.dx > 0 else -1)
+        self.dy = max(-max_speed, min(max_speed, self.dy)) if abs(self.dy) >= min_speed else min_speed * (1 if self.dy > 0 else -1)
+
+    def check_collision(self, other):
+        
+        if self.color == other.color:
+            return
+
+        if (self.x < other.x + other.width and
+            self.x + self.width > other.x and
+            self.y < other.y + other.height and
+            self.y + self.height > other.y):
+
+            overlap_x = min(self.x + self.width - other.x, other.x + other.width - self.x)
+            overlap_y = min(self.y + self.height - other.y, other.y + other.height - self.y)
+
+            if overlap_x < overlap_y:
+                if self.x < other.x:
+                    self.x -= overlap_x
+                    other.x += overlap_x
+                else:
+                    self.x += overlap_x
+                    other.x -= overlap_x
+            else:
+                if self.y < other.y:
+                    self.y -= overlap_y
+                    other.y += overlap_y
+                else:
+                    self.y += overlap_y
+                    other.y -= overlap_y
+
+            self.dx *= -1
+            other.dx *= -1
+            self.dy *= -1
+            other.dy *= -1
+
+            self.dx += random.uniform(-3, 5)
+            self.dy += random.uniform(-3, 5)
+            other.dx += random.uniform(-3, 5)
+            other.dy += random.uniform(-3, 5)
+
+            self.add_random_bounce()
+            other.add_random_bounce()
+            
+            self.hp -= abs(self.dx) + abs(self.dy)
+            other.hp -= abs(self.dx) + abs(self.dy)
+
+    def is_alive(self):
+        return self.hp > 0
+
+boundary = Cube(15, 200, 700, 700)
+
+
+cubes = [
+    Cube(250, 300, 50, 50, dx=5, dy=5, color=(0, 0, 255)),
+    Cube(250, 220, 50, 50, dx=5, dy=5, color=(0, 0, 255)),
+    Cube(300, 300, 50, 50, dx=5, dy=-5, color=(0, 0, 255)),
+    Cube(500, 300, 50, 50, dx=5, dy=-5, color=(0, 0, 255)),
+    Cube(300, 500, 50, 50, dx=5, dy=-5, color=(0, 0, 255)),
+    Cube(500, 300, 50, 50, dx=5, dy=-5, color=(255, 0, 0)),
+    Cube(300, 200, 50, 50, dx=5, dy=-5, color=(255, 0, 0)),
+    Cube(600, 300, 50, 50, dx=5, dy=-5, color=(255, 0, 0)),
+    Cube(400, 300, 50, 50, dx=5, dy=-5, color=(255, 0, 0)),
+    Cube(400, 300, 50, 50, dx=5, dy=-5, color=(255, 0, 0))
+]
+
+run = True
+while run:
+    pygame.time.delay(15)
+    win.fill((0, 0, 0))
+
+    for cube in cubes[:]:
+        cube.move()
+        cube.bounce_wall(boundary)
+        if cube.is_alive():
+            cube.draw(win, outline=0)
+            cube.draw_hp_bar(win)
+        else:
+            cubes.remove(cube)
+
+    for i in range(len(cubes)):
+        for j in range(i + 1, len(cubes)):
+            cubes[i].check_collision(cubes[j])
+
+    boundary.draw(win)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+
+    pygame.display.update()
+
+pygame.quit()
